@@ -24,7 +24,7 @@ AC_PREREQ([2.68])
 AC_INIT([sysResource], [1.0], [ridish.ra@lntteschservices.com])
 AC_CONFIG_SRCDIR([src/mlt_malloc.cpp])
 
-AC_CONFIG_MACRO_DIR([cfg])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([cfg])
 AM_INIT_AUTOMAKE([foreign no-dist-gzip dist-bzip2 1.9])
 AC_CONFIG_HEADERS([cfg/config.h])
