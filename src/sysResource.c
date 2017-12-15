@@ -150,13 +150,32 @@ void resetIterDelta()
 static int createSysResourceInfo(pid_t processId, char *processName, struct structProcMemInfo *sProcMemInfo, char *sysResorceInfo, bool includeIterDelta)
 {
 	time_t	timeNow;
-	struct	mallinfo sMallInfo;
 	char	ctime_b[26];
 	int	buffoff=0;
 
+#if defined (__GLIBC__)
+	struct	mallinfo sMallInfo;
+
+	sMallInfo = mallinfo();
+#else
+	/* Temp solution for non-glibc builds */
+	struct mallinfo {
+		int arena;      /* Non-mmapped space allocated (bytes) */
+		int ordblks;    /* Number of free chunks */
+		int smblks;     /* Number of free fastbin blocks */
+		int hblks;      /* Number of mmapped regions */
+		int hblkhd;     /* Space allocated in mmapped regions (bytes) */
+		int usmblks;    /* Maximum total allocated space (bytes) */
+		int fsmblks;    /* Space in freed fastbin blocks (bytes) */
+		int uordblks;   /* Total allocated space (bytes) */
+		int fordblks;   /* Total free space (bytes) */
+		int keepcost;   /* Top-most, releasable space (bytes) */
+	}
+	sMallInfo = { 0 };
+#endif
+
 	timeNow=time(NULL); 
 	ctime_r(&timeNow, ctime_b); ctime_b[24]='\0';
-	sMallInfo=mallinfo();	
 	buffoff=sprintf(sysResorceInfo, "%s [%d:%10.10s]: total = %08luKB[%2.2luMB] arena = %08d[%5.5dKB][%2.2dMB] ford = %08d[%5.5dKB][%2.2dMB] uord = %08d[%5.5dKB][%2.2dMB] hblkh   = %08d[%5.5dKB][%2.2dMB]\n",
 		&ctime_b[4], processId,  processName,
 		sProcMemInfo->totalram,	sProcMemInfo->totalram/1024,
