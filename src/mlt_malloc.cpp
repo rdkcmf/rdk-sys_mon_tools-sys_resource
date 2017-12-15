@@ -59,8 +59,6 @@
 #include "eltAnalyzer.h"
 #endif
 
-pthread_mutex_t 	mltMutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-
 #ifdef USE_CMAS		// Caller memory allocation frequency statistics
 CmasAnalyzer	cmasAnalyzer(192*1024);
 
@@ -76,9 +74,6 @@ EltAnalyzer<float, int>	cmatAnalyzer(1000, 100, 8*1024);
 EltAnalyzer<float, int>	cmdtAnalyzer(1000, 100, 8*1024);
 #endif //USE_CMAT_SSTATS
 
-#define lock()		pthread_mutex_lock(&mltMutex);
-#define unlock()	pthread_mutex_unlock(&mltMutex);
-
 static unsigned long	allocsSize=0;		// Current number of active allocations
 static unsigned long	allocsMaxSize=0;	// Maximum number of active allocations
 static unsigned long	totalMallocCalls=0;	// Total number of malloc calls
@@ -93,6 +88,30 @@ static	MltAnalyzer	mltAnalyzer(192*1024);
 #else
 #define	LNK_MALLOC(x)
 #endif
+
+static pthread_once_t   mltMutex_once = PTHREAD_ONCE_INIT;
+static pthread_mutex_t 	mltMutex;
+
+static void mltMutex_init (void)
+{
+	pthread_mutexattr_t attr;
+
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&mltMutex, &attr);
+	pthread_mutexattr_destroy(&attr);
+}
+
+static int lock (void)
+{
+	pthread_once(&mltMutex_once, mltMutex_init);
+	return pthread_mutex_lock(&mltMutex);
+}
+
+static int unlock (void)
+{
+	return pthread_mutex_unlock(&mltMutex);
+}
 
 void mlt_analyze(unsigned long iterationN)
 {
@@ -222,8 +241,13 @@ void *mlt_realloc(void *p, unsigned int size, void *caller, const char *file, in
 	--totalMallocCalls;
 	if (!m)
 	{
+#if defined (__GLIBC__)
 		WDR("mlt_realloc: Memory Allocation Failure: thread = %p lockCount = %d caller = %8.8p size = %8.8d file = %s:%d p = %p\n", 
 			(void*)pthread_self(), mltMutex.__data.__count, caller, size, file, line, p);
+#else
+		WDR("mlt_realloc: Memory Allocation Failure: thread = %p lockCount = UNKNOWN caller = %8.8p size = %8.8d file = %s:%d p = %p\n", 
+			(void*)pthread_self(), caller, size, file, line, p);
+#endif
 		unlock();
 		DEBUG_MLT(WDR("mlt_realloc:thread = %p lockCount = %d Memory Allocation Failure: ...done\n", pthread_self(), mltMutex.__data.__count));
 		return m;

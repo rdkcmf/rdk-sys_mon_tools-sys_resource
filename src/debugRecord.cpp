@@ -56,7 +56,7 @@ static bool 		drInitialized=false;
 static int 		totalCharsLogged = 0;
 static char		debugArray[ARRAY_SIZE];
 static char 		*RecordPtr = debugArray;
-static pthread_mutex_t 	drMutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static pthread_mutex_t 	drMutex;
 static char		filename[WDR_FILENAME_LENGTH] = {0};
 
 static void 		drReset();
@@ -68,6 +68,8 @@ static void 		drSignalHandler(int signal);
 
 static void __dr_attr_init drInitialize ()
 {
+	pthread_mutexattr_t attr;
+
 	printf("drInitialize: thread = %p\n", pthread_self());
 	if (drInitialized)
 	{
@@ -77,6 +79,11 @@ static void __dr_attr_init drInitialize ()
 
 	signal(SIGSEGV,  drSignalHandler);
 	signal(SIGTSTP,  drSignalHandler);
+
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&drMutex, &attr);
+	pthread_mutexattr_destroy(&attr);
 
 	lock();
 	if ((file = fopen(drFilename(WDR_FILE_DEFAULT_PATH, "WDR", "", filename), "w")) != NULL)
